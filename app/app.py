@@ -8,7 +8,8 @@ from app.services.rag import rag_node
 # Configuration and Constants
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-MODEL_PATH = 'Mobilenet_TL.keras'
+MODEL_PATH = 'Mobilenet_Type.keras'
+MODEL_PATH_2 = 'Mobilenet_Severity.keras'
 TARGET_SIZE = (224, 224)
 
 # Initialize Flask App
@@ -27,10 +28,11 @@ def allowed_file(filename):
 
 # Load the model globally
 MODEL = load_keras_model(MODEL_PATH)
+MODEL2 = load_keras_model(MODEL_PATH_2)
 if MODEL is None:
     raise RuntimeError("Could not load the model. Please check the model file.")
 
-@app.route('/predict', methods=['POST'])
+@app.route('/predict_type', methods=['POST'])
 def predict():
     """Endpoint for wound type prediction"""
     # Check if file is present in the request
@@ -73,7 +75,61 @@ def predict():
 
         return jsonify({
             'status': 'success',
-            'result': prediction
+            'wound type': prediction
+        })
+
+    except Exception as e:
+        # Log the error (in a real-world scenario, use proper logging)
+        print(f"Prediction error: {str(e)}")
+        return jsonify({
+            'error': 'Error processing the image',
+            'status': 'failure'
+        }), 500
+
+@app.route('/predict_severity', methods=['POST'])
+def predict():
+    """Endpoint for wound type prediction"""
+    # Check if file is present in the request
+    if 'file' not in request.files:
+        return jsonify({
+            'error': 'No file uploaded',
+            'status': 'failure'
+        }), 400
+
+    file = request.files['file']
+
+    # Check if filename is empty
+    if file.filename == '':
+        return jsonify({
+            'error': 'No selected file',
+            'status': 'failure'
+        }), 400
+
+    # Check file type
+    if not allowed_file(file.filename):
+        return jsonify({
+            'error': 'Invalid file type. Only PNG, JPG, and JPEG are allowed',
+            'status': 'failure'
+        }), 400
+
+    try:
+        # Secure the filename
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Preprocess the image
+        processed_image = preprocess_image(filepath)
+
+        # Predict wound type
+        prediction = predict_wound_type(MODEL2, processed_image)
+
+        # Remove the uploaded file
+        os.remove(filepath)
+
+        return jsonify({
+            'status': 'success',
+            'wound severity': prediction
         })
 
     except Exception as e:
@@ -123,6 +179,67 @@ def rag():
             'status': 'failure'
         }), 500
 
+@app.route('/analyze_wound', methods=['POST'])
+def analyze_wound():
+    """Endpoint for comprehensive wound analysis"""
+    # Check if file is present in the request
+    if 'file' not in request.files:
+        return jsonify({
+            'error': 'No file uploaded',
+            'status': 'failure'
+        }), 400
 
+    file = request.files['file']
+
+    # Check if filename is empty
+    if file.filename == '':
+        return jsonify({
+            'error': 'No selected file',
+            'status': 'failure'
+        }), 400
+
+    # Check file type
+    if not allowed_file(file.filename):
+        return jsonify({
+            'error': 'Invalid file type. Only PNG, JPG, and JPEG are allowed',
+            'status': 'failure'
+        }), 400
+
+    try:
+        # Secure the filename
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Preprocess the image
+        processed_image = preprocess_image(filepath)
+
+        # Predict wound type and severity
+        wound_type = predict_wound_type(MODEL, processed_image)
+        wound_severity = predict_wound_type(MODEL2, processed_image)
+
+        # Generate contextual information using RAG
+        rag_prompt = f"Provide medical advice for a {wound_type} wound with {wound_severity} severity"
+        rag_result = rag_node(rag_prompt)
+        medical_advice = rag_result.get('answer', 'No specific advice available')
+
+        # Remove the uploaded file
+        os.remove(filepath)
+
+        return jsonify({
+            'status': 'success',
+            'wound_type': wound_type,
+            'wound_severity': wound_severity,
+            'medical_advice': medical_advice
+        })
+
+    except Exception as e:
+        # Log the error (in a real-world scenario, use proper logging)
+        print(f"Wound analysis error: {str(e)}")
+        return jsonify({
+            'error': 'Error processing the image',
+            'status': 'failure'
+        }), 500
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
