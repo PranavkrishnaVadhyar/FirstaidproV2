@@ -5,8 +5,8 @@ import numpy as np
 from PIL import Image
 
 
-MODEL_PATH = 'Mobilenet_Type.keras'
-MODEL_PATH_2 = 'Mobilenet_Severity.keras'
+MODEL_PATH = 'Mobilenet_Type.h5'
+MODEL_PATH_2 = 'Mobilenet_Severity.h5'
 
 TARGET_SIZE = (224, 224)
 

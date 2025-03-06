@@ -2,14 +2,14 @@ import os
 import numpy as np
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
-from app.services.image_class import load_keras_model, preprocess_image, predict_wound_type
-from app.services.rag import rag_node
+from services.image_class import load_keras_model, preprocess_image, predict_wound_type
+from services.rag import rag_node
 
 # Configuration and Constants
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-MODEL_PATH = 'Mobilenet_Type.keras'
-MODEL_PATH_2 = 'Mobilenet_Severity.keras'
+MODEL_PATH = 'Mobilenet_Type.h5'
+MODEL_PATH_2 = 'Mobilenet_Severity.h5'
 TARGET_SIZE = (224, 224)
 
 # Initialize Flask App
